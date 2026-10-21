@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Http\Requests\TaskRequest;
+use App\Models\Category;
+use App\Models\Task;
 
 class TaskController extends Controller
 {
@@ -11,7 +14,13 @@ class TaskController extends Controller
      */
     public function index()
     {
-        //
+        $tasks = auth()->user()->tasks()
+            ->with('category')
+            ->orderBy('priority', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('tasks.index', compact('tasks'));
     }
 
     /**
@@ -19,7 +28,9 @@ class TaskController extends Controller
      */
     public function create()
     {
-        //
+        $categories = Category::orderBy('name')->get();
+
+        return view('tasks.create', compact('categories'));
     }
 
     /**
@@ -27,38 +38,62 @@ class TaskController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validated();
+        $validated['user_id'] = auth()->id();
+
+        Task::create($validated);
+
+        return redirect()->route('tasks.index')
+            ->with('success', 'タスクを作成しました。');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Task $task)
     {
-        //
+        $this->authorize('view', $task);
+
+        $task->load('category');
+
+        return view('tasks.show', compact('task'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Task $task)
     {
-        //
+        $this->authorize('update', $task);
+
+        $categories = Category::orderBy('name')->get();
+
+        return view('tasks.edit', compact('task', 'categories'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(TaskRequest $request, Task $task)
     {
-        //
+        $this->authorize('update', $task);
+
+        $task->update($request->validated());
+
+        return redirect()->route('tasks.index')
+            ->with('success', 'タスクを更新しました。');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Task $task)
     {
-        //
+        $this->authorize('delete', $task);
+
+        $task->delete();
+
+        return redirect()->route('tasks.index')
+            ->with('success', 'タスクを削除しました。');
     }
 }
